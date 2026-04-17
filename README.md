@@ -1,72 +1,68 @@
 # Kuhn Poker Perturbation Experiments
 
-Studying how planning (CFR) and reinforcement learning (Q-learning) agents adapt
-when Player 0 loses the ability to bet mid-game in Kuhn Poker. We compare
-catastrophic collapse under full action removal against stable behaviour when
-partial decision-making capacity is preserved.
+How do planning and RL agents adapt when the rules change mid-game? We remove
+Player 0's ability to bet in Kuhn Poker and compare CFR (frozen Nash policy)
+against tabular Q-learning (self-play). The key finding: even one remaining
+decision point prevents catastrophic collapse.
 
-## Setup
+## Quick Start
 
-```
+```bash
 pip install -r requirements.txt
+python run_experiments.py --config configs/root_only.yaml
 ```
 
-Requires Python 3.10+. No external game libraries needed -- Kuhn Poker is
-implemented from scratch.
+Run both experiments at once:
 
-## Running experiments
-
-Run both experiments:
-
-```
+```bash
 python run_experiments.py
 ```
 
-Run a single experiment:
+Requires Python 3.10+. No external game libraries -- Kuhn Poker is implemented from scratch.
 
-```
-python run_experiments.py configs/full_removal.yaml
-python run_experiments.py configs/root_only.yaml
-```
+## Key Result
 
-Results are saved to `results/raw/` (CSV) and `results/plots/` (PNG).
+Removing all actions from an agent leads to catastrophic exploitation under
+self-play (\~-0.91), while preserving even a single decision point stabilizes
+behavior near equilibrium (\~-0.05).
+
+This demonstrates a nonlinear relationship between decision capacity and
+robustness in multi-agent learning.
+
+| Perturbation | CFR | Q-Learning |
+|---|---|---|
+| Full removal (0 decisions left) | -0.23 | **-0.91** |
+| Root-only (1 decision left) | -0.07 | **-0.05** |
 
 ## Experiments
 
 Each experiment runs 20,000 self-play episodes. At episode 10,000 a rule
 perturbation is applied to Player 0 only.
 
-| Config | Perturbation | P0 decisions remaining |
-|---|---|---|
-| `full_removal` | Remove bet from P0 at **all** nodes | None (forced check + fold) |
-| `root_only` | Remove bet from P0 at **root** only | Call/fold at "pb" node |
+**Full removal** (`configs/full_removal.yaml`) -- Bet is removed from P0 at
+*all* decision nodes. P0 cannot open-bet or call. Zero remaining decisions.
+Q-learning collapses as the self-play opponent learns total exploitation.
+
+![Full Removal](results/plots/full_removal.png)
+
+**Root-only removal** (`configs/root_only.yaml`) -- Bet is removed from P0
+at the *root* only. P0 can still call or fold when facing a bet. One remaining
+decision. Q-learning stabilises near Nash equilibrium value.
+
+![Root Only](results/plots/root_only.png)
 
 ### Agents
 
-- **CFR**: Trained to Nash equilibrium before perturbation, then frozen.
-- **Q-Learning**: Tabular, epsilon-greedy, self-play. Continues learning after
-  perturbation.
+- **CFR** -- Trained to Nash equilibrium before perturbation, then frozen.
+- **Q-Learning** -- Tabular, epsilon-greedy, self-play. Continues learning
+  after perturbation.
 
-## Key finding
+## Project Structure
 
-The difference between zero and one remaining decision is not incremental --
-it determines whether self-play RL collapses or stabilises:
-
-| Perturbation | CFR post | Q-Learning post |
-|---|---|---|
-| Full removal  | -0.23 | **-0.91** |
-| Root-only     | -0.07 | **-0.05** |
-
-Minimal decision capacity prevents catastrophic exploitation in self-play RL.
-
-## Project structure
-
-```
-configs/             YAML experiment definitions
-src/agents/          CFR and Q-learning agent implementations
-src/env/             Kuhn Poker environment + perturbation wrapper
-src/experiments/     Experiment runner
-src/utils/           Metrics and plotting
-results/             Output CSVs and plots
-report/              Analysis draft
-```
+- `configs/` -- YAML experiment definitions
+- `src/env/` -- Kuhn Poker environment and perturbation wrapper
+- `src/agents/` -- CFR and Q-learning implementations
+- `src/experiments/` -- Experiment runner
+- `src/utils/` -- Metrics and plotting
+- `results/` -- Output CSVs and plots
+- `report/` -- Analysis draft
