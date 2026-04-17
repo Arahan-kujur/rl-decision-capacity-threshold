@@ -1,0 +1,20 @@
+experiment:
+  name: root_only
+  seed: 42
+  num_episodes: 20000
+  perturbation_episode: 10000
+
+cfr:
+  iterations: 10000
+
+q_learning:
+  alpha: 0.1
+  epsilon: 0.15
+
+perturbation:
+  removed_action: bet
+  affected_player: 0
+  root_only: true
+
+plot:
+  window: 200
