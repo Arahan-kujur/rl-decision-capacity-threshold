@@ -52,17 +52,24 @@ def normalize_reward(reward, game_constants, mode="minmax"):
 # ---------------------------------------------------------------------------
 
 def summarize_seed(results, perturbation_ep, num_episodes, agents=None,
-                   game_constants=None):
+                   game_constants=None, recovery_ep=None):
     """Mean P0 reward before/after perturbation for a single seed.
 
     Uses adaptive burn-in: skips up to 25% of the pre/post window
     (capped at 5k/2k respectively) to get stable estimates.
+    Supports optional recovery phase (three-phase summary).
     """
     if agents is None:
         agents = sorted(set(r[2] for r in results))
 
     pre_burnin = min(5000, perturbation_ep // 4)
-    post_burnin = min(2000, (num_episodes - perturbation_ep) // 4)
+
+    if recovery_ep is not None:
+        post_end = recovery_ep
+        post_burnin = min(2000, (recovery_ep - perturbation_ep) // 4)
+    else:
+        post_end = num_episodes
+        post_burnin = min(2000, (num_episodes - perturbation_ep) // 4)
 
     summary = {}
     for agent in agents:
@@ -72,8 +79,18 @@ def summarize_seed(results, perturbation_ep, num_episodes, agents=None,
         post = np.mean([r[1] for r in results
                         if r[2] == agent
                         and perturbation_ep + post_burnin <= r[0]
-                        < num_episodes])
+                        < post_end])
         entry = {"pre": pre, "post": post, "delta": post - pre}
+
+        if recovery_ep is not None:
+            rec_burnin = min(2000, (num_episodes - recovery_ep) // 4)
+            recovered = np.mean([r[1] for r in results
+                                 if r[2] == agent
+                                 and recovery_ep + rec_burnin <= r[0]
+                                 < num_episodes])
+            entry["recovered"] = recovered
+            entry["recovery_delta"] = recovered - post
+
         if game_constants is not None:
             entry["pre_norm"] = float(normalize_reward(pre, game_constants))
             entry["post_norm"] = float(normalize_reward(post, game_constants))
@@ -140,6 +157,125 @@ def collapse_summary(all_seed_results, perturbation_ep, threshold,
             "std_ep": float(np.std(valid)) if valid else None,
         }
     return out
+
+
+# ---------------------------------------------------------------------------
+# Exploitability (exact, Kuhn Poker)
+# ---------------------------------------------------------------------------
+
+def compute_exploitability(policy, game_name):
+    """Compute exact exploitability for a given policy in Kuhn Poker.
+
+    Exploitability = (BR_value_p0 + BR_value_p1) / 2
+    where BR_value_p0 is the value of best-responding as P0 against the policy
+    playing as P1, and BR_value_p1 is the value of best-responding as P1
+    against the policy playing as P0.
+
+    Parameters
+    ----------
+    policy : dict mapping info_state_str -> array of action probabilities
+        e.g. {"0": [0.8, 0.2], "1pb": [0.5, 0.5], ...}
+    game_name : str
+        Currently only "kuhn" is supported.
+
+    Returns
+    -------
+    float : exploitability in raw reward units
+    """
+    if game_name != "kuhn":
+        raise NotImplementedError(
+            f"Exploitability not implemented for '{game_name}'. Only 'kuhn' is supported.")
+
+    PASS, BET = 0, 1
+    cards = [0, 1, 2]  # J, Q, K
+    all_deals = [(c0, c1) for c0 in cards for c1 in cards if c0 != c1]
+
+    def _get_policy_prob(info_state, action):
+        """Get probability of action from the policy at given info state."""
+        if info_state in policy:
+            probs = policy[info_state]
+            if hasattr(probs, '__getitem__'):
+                return float(probs[action])
+        return 0.5  # uniform default if info state not in policy
+
+    def _showdown_value(c0, c1, pot):
+        """P0's payoff in a showdown."""
+        return pot if c0 > c1 else -pot
+
+    def _br_value_as_p0(c0, c1):
+        """Best-response value for P0 against policy playing as P1."""
+        # P0 acts first. Try both actions, pick the best.
+        # history: ""
+        # P0 passes:
+        p1_info = f"{c1}p"
+        p1_bet_prob = _get_policy_prob(p1_info, BET)
+        p1_pass_prob = 1.0 - p1_bet_prob
+
+        # P0 passes -> P1 passes: showdown at pot=1 each (net +/-1)
+        # P0 passes -> P1 bets -> P0 can best-respond (pass=fold or bet=call)
+        val_p0_pass_p1_pass = _showdown_value(c0, c1, 1)
+        # P0 passes, P1 bets: P0 at info "Xpb"
+        # Best response: pick best of fold (-1) or call (showdown at 2)
+        val_p0_fold = -1
+        val_p0_call = _showdown_value(c0, c1, 2)
+        val_p0_pass_p1_bet = max(val_p0_fold, val_p0_call)
+
+        val_p0_passes = p1_pass_prob * val_p0_pass_p1_pass + p1_bet_prob * val_p0_pass_p1_bet
+
+        # P0 bets:
+        p1_info_b = f"{c1}b"
+        p1_bet_prob_b = _get_policy_prob(p1_info_b, BET)
+        p1_pass_prob_b = 1.0 - p1_bet_prob_b
+
+        # P0 bets -> P1 passes (folds): P0 wins pot=1 -> +1
+        val_p0_bet_p1_pass = 1
+        # P0 bets -> P1 bets (calls): showdown at pot=2 each
+        val_p0_bet_p1_bet = _showdown_value(c0, c1, 2)
+
+        val_p0_bets = p1_pass_prob_b * val_p0_bet_p1_pass + p1_bet_prob_b * val_p0_bet_p1_bet
+
+        return max(val_p0_passes, val_p0_bets)
+
+    def _br_value_as_p1(c0, c1):
+        """Best-response value for P1 against policy playing as P0."""
+        p0_info = f"{c0}"
+        p0_bet_prob = _get_policy_prob(p0_info, BET)
+        p0_pass_prob = 1.0 - p0_bet_prob
+
+        # P0 passes -> P1 best responds (pass or bet)
+        # P1 passes: showdown at 1
+        val_p1_pass_after_p0_pass = -_showdown_value(c0, c1, 1)
+        # P1 bets -> P0 at info "Xpb"
+        p0_info_pb = f"{c0}pb"
+        p0_call_prob = _get_policy_prob(p0_info_pb, BET)
+        p0_fold_prob = 1.0 - p0_call_prob
+        # P0 folds: P1 wins +1
+        # P0 calls: showdown at 2
+        val_p1_bet_after_p0_pass = p0_fold_prob * 1 + p0_call_prob * (-_showdown_value(c0, c1, 2))
+
+        val_p1_after_p0_pass = max(val_p1_pass_after_p0_pass, val_p1_bet_after_p0_pass)
+
+        # P0 bets -> P1 best responds (pass=fold or bet=call)
+        # P1 folds: -1
+        val_p1_fold = -1
+        # P1 calls: showdown at 2
+        val_p1_call = -_showdown_value(c0, c1, 2)
+
+        val_p1_after_p0_bet = max(val_p1_fold, val_p1_call)
+
+        return p0_pass_prob * val_p1_after_p0_pass + p0_bet_prob * val_p1_after_p0_bet
+
+    br_p0_total = 0.0
+    br_p1_total = 0.0
+    for c0, c1 in all_deals:
+        br_p0_total += _br_value_as_p0(c0, c1)
+        br_p1_total += _br_value_as_p1(c0, c1)
+
+    n_deals = len(all_deals)
+    br_p0_value = br_p0_total / n_deals
+    br_p1_value = br_p1_total / n_deals
+
+    return (br_p0_value + br_p1_value) / 2.0
 
 
 def format_collapse_table(collapse_stats, perturbation_ep):

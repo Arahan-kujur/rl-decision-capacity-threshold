@@ -1,7 +1,7 @@
 experiment:
   name: leduc_full_removal
   game: leduc
-  seeds: [42, 123, 456, 789, 1024]
+  seeds: [42, 123, 456, 789, 1024, 2048, 3072, 4096, 5120, 6144, 7168, 8192, 9216, 10240, 11264, 12288, 13312, 14336, 15360, 16384]
   num_episodes: 20000
   perturbation_episode: 10000
 
