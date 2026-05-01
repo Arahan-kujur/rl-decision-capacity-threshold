@@ -91,6 +91,8 @@ Each experiment: 20 seeds, 20{,}000 episodes (50{,}000 for DQN). Perturbation at
 % ===================================================================
 \section{Theory}
 
+The propositions below apply to two-player zero-sum games. Section~\ref{sec:boundaries} presents empirical evidence that cooperative settings produce bounded degradation rather than collapse; formal extension to general-sum games is future work.
+
 \begin{proposition}[Zero-contingency exploitation]
 \label{prop:zero}
 Let $G'$ be the reduced game with $\mathrm{CAC}(P_0)=0$. Then $v_0(G')$ equals the best-response value against $P_0$'s forced policy: $v_0(G') = -\max_{\pi_1} \sum_z u_1(z) \cdot \rho^{\sigma_0^f,\pi_1}(z)$.
@@ -207,7 +209,7 @@ Collapse holds across poker and matrix games (Table~\ref{tab:cross-game}). Liar'
 
 \textbf{Liar's Dice.} Challenge-only retains strategic value (contingent on private die). No collapse at either scale (1d/2d). Confirms the threshold depends on \emph{strategic flexibility}, not action count.
 
-\textbf{Non-zero-sum domains.} In the cooperative Coordination game, forcing P0 to a single action (CAC $= 0$) degrades performance ($p = 0.001$) but does not produce convergence to the DEA. In the Negotiation game, P1 shifts toward rejection but does not converge to unconditional rejection. Cooperative dynamics produce bounded degradation, not collapse---the threshold interacts with interaction structure.
+\textbf{Non-zero-sum domains.} In the cooperative Coordination game, forcing P0 to a single action (CAC $= 0$) degrades performance ($p = 0.001$) but does not produce convergence to the DEA. In the Negotiation game, P1 shifts toward rejection because it can condition on P0's inability to adapt, but does not converge to unconditional rejection. Cooperative dynamics produce bounded degradation, not collapse---the threshold interacts with interaction structure.
 
 \textbf{Timing.} Episodes 3k/10k/17k yield identical collapse ($-0.926$/$-0.927$/$-0.925$).
 

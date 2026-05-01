@@ -76,7 +76,7 @@ Each experiment runs 20 seeds of 20,000 episodes (50,000 for DQN). Perturbation 
 
 ## 5. Theory
 
-We formalise the threshold effect in two-player zero-sum extensive-form games.
+We formalise the threshold effect in two-player zero-sum extensive-form games. The propositions below apply to the zero-sum case; Section 6.5 presents empirical evidence that cooperative and mixed-motive settings produce a qualitatively different (bounded degradation) response. Extending the formal treatment to general-sum games is left to future work.
 
 **Proposition 1 (Zero-contingency exploitation).** Let G' be the reduced game obtained by fixing Player 0's action at every information set (CAC = 0). Then Player 0's value in G' equals the best-response value against P0's forced policy. Under zero contingency, P0 has no strategic choices; the game reduces to a single-agent optimisation for P1, whose optimal response is the pure best response BR(sigma_0^f). By the minimax theorem, this determines v_0(G') uniquely.
 
@@ -172,7 +172,7 @@ Collapse holds across all four games, spanning 1 to 504 information sets. Severi
 
 **Liar's Dice: when the "removed" action retains strategic value.** Removing all claims from P0 in Liar's Dice forces challenge-only play. Neither tabular Q-Learning (1-die, 24,576 info sets; post = -0.032) nor DQN (2-dice, 200,000+ info sets; post = +0.008) collapses. Unlike forced fold in Kuhn, challenging is contingent on P0's private die and claim history. P0 retains genuine decision-making through the *timing* of challenges. This confirms the threshold depends on strategic flexibility, not action count.
 
-**Non-zero-sum domains: degradation without collapse.** In the cooperative Coordination game (match-the-target), forcing P0 to a single action (CAC = 0) degrades team performance (+1.57 -> +1.44, p = 0.001, d = -3.8) but does not produce convergence to the DEA. In the Negotiation game (ultimatum, 11 offer actions), forcing P0 to a single offer (CAC = 0) degrades outcomes; P1's policy shifts toward rejection once it detects P0's fixed offer, but this rejection is bounded. Retaining partial flexibility (offers 0-2, CAC = 3) reverses the degradation entirely. In contrast to competitive settings where zero contingency produces collapse to the DEA, cooperative and mixed-motive environments exhibit bounded degradation, suggesting the threshold interacts with the underlying interaction structure.
+**Non-zero-sum domains: degradation without collapse.** In the cooperative Coordination game (match-the-target), forcing P0 to a single action (CAC = 0) degrades team performance (+1.57 -> +1.44, p = 0.001, d = -3.8) but does not produce convergence to the DEA. In the Negotiation game (ultimatum, 11 offer actions), forcing P0 to a single offer (CAC = 0) degrades outcomes; P1's policy shifts toward rejection because it can condition on P0's inability to adapt its offer, but this rejection is bounded. Retaining partial flexibility (offers 0-2, CAC = 3) reverses the degradation entirely. In contrast to competitive settings where zero contingency produces collapse to the DEA, cooperative and mixed-motive environments exhibit bounded degradation, suggesting the threshold interacts with the underlying interaction structure.
 
 **Timing invariance.** Perturbation at episodes 3k, 10k, 17k yields identical collapse (-0.926, -0.927, -0.925). The DEA is a structural attractor independent of training stage.
 
