@@ -203,6 +203,8 @@ class DQNAgent:
     def _get_epsilon(self):
         if self._frozen:
             return 0.0
+        if self._epsilon_decay <= 0:
+            return self._epsilon_start
         frac = min(1.0, self._step_count / self._epsilon_decay)
         return self._epsilon_start + frac * (self._epsilon_end - self._epsilon_start)
 

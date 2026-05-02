@@ -44,6 +44,11 @@ def _create_learning_agent(config, num_actions):
         from src.agents.dqn_agent import DQNAgent
         game = config["experiment"].get("game", "kuhn")
         return DQNAgent(num_actions=num_actions, game=game), "DQN"
+    elif agent_type == "nfsp":
+        from src.agents.nfsp_agent import NFSPAgent
+        eta = config.get("nfsp", {}).get("eta", 0.1)
+        return NFSPAgent(alpha=alpha, epsilon=epsilon,
+                         num_actions=num_actions, eta=eta), "NFSP"
     else:
         return QLearningAgent(alpha=alpha, epsilon=epsilon,
                               num_actions=num_actions), "Q-Learning"

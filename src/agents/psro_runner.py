@@ -98,7 +98,7 @@ def evaluate(env, p0_qtable, p1_qtables, episodes, rng):
 
 
 def run_psro(seed, episodes_per_iter=5000, num_iters=5,
-             perturb_after=3, eval_episodes=2000):
+             perturb_after=3, eval_episodes=2000, quiet=False):
     rng = np.random.default_rng(seed)
     env = make_env(rng)
 
@@ -130,13 +130,70 @@ def run_psro(seed, episodes_per_iter=5000, num_iters=5,
 
         reward = evaluate(env, p0_snap, p1_population, eval_episodes, rng)
         results.append((it, tag, reward, len(p1_population)))
-        print(f"  Iter {it} [{tag:>9}]  pop={len(p1_population)}  "
-              f"P0 reward = {reward:+.3f}")
+        if not quiet:
+            print(f"  Iter {it} [{tag:>9}]  pop={len(p1_population)}  "
+                  f"P0 reward = {reward:+.3f}")
 
     return results
 
 
+import math
+
+
+def run_psro_scaling(pop_sizes=None, seeds=None, episodes_per_iter=5000,
+                     eval_episodes=2000):
+    """Run PSRO at multiple population sizes and report a summary table."""
+    if pop_sizes is None:
+        pop_sizes = [3, 5, 10, 15]
+    if seeds is None:
+        seeds = [42, 123, 456, 789, 1024]
+
+    print("=" * 70)
+    print("PSRO SCALING -- Kuhn Poker -- zero contingency (full bet removal)")
+    print("=" * 70)
+
+    table = {}
+
+    for pop_size in pop_sizes:
+        num_iters = pop_size
+        perturb_after = math.ceil(pop_size / 2)
+        final_rewards = []
+
+        print(f"\n>>> Pop size {pop_size}  "
+              f"(iters={num_iters}, perturb_after={perturb_after})")
+
+        for seed in seeds:
+            results = run_psro(seed, episodes_per_iter=episodes_per_iter,
+                               num_iters=num_iters,
+                               perturb_after=perturb_after,
+                               eval_episodes=eval_episodes, quiet=True)
+            final_reward = results[-1][2]
+            final_rewards.append(final_reward)
+            print(f"    Seed {seed:>4}: {final_reward:+.3f}")
+
+        m = np.mean(final_rewards)
+        s = np.std(final_rewards)
+        table[pop_size] = (m, s, final_rewards)
+        print(f"    -> Mean: {m:+.3f} +/- {s:.3f}")
+
+    print("\n" + "=" * 70)
+    print(f"{'Pop size':>10}    P0 reward (mean +/- std)")
+    print("-" * 45)
+    for ps in pop_sizes:
+        m, s, _ = table[ps]
+        print(f"{ps:>10}    {m:+.3f} +/- {s:.3f}")
+    print("=" * 70)
+
+    return table
+
+
 def main():
+    import sys
+
+    if "--scaling" in sys.argv:
+        run_psro_scaling()
+        return
+
     seeds = [42, 123, 789]
     all_final = []
 

@@ -197,6 +197,177 @@ def _exploitability_matching_pennies(policy):
     return (br_p0_value + br_p1_value) / 2.0
 
 
+def _exploitability_leduc(policy):
+    """Exact exploitability for Leduc Poker via game-tree best-response.
+
+    Enumerates all 120 deals (6*5*4 choosing p0, p1, community from
+    distinct cards).  For each deal, computes the best-response value
+    for P0 (against policy playing P1) and P1 (against policy playing P0)
+    by recursively walking the game tree.
+    """
+    from src.env.leduc_poker import (
+        FOLD, CHECK_CALL, RAISE, NUM_ACTIONS, CARDS, card_rank,
+        ACTION_CHARS,
+    )
+
+    all_deals = []
+    for p0 in CARDS:
+        for p1 in CARDS:
+            if p1 == p0:
+                continue
+            for comm in CARDS:
+                if comm == p0 or comm == p1:
+                    continue
+                all_deals.append((p0, p1, comm))
+
+    def _get_prob(info_state, action):
+        if info_state in policy:
+            probs = policy[info_state]
+            if hasattr(probs, '__getitem__'):
+                return float(probs[action])
+        return 1.0 / NUM_ACTIONS
+
+    def _legal(round_actions, raises):
+        n = len(round_actions)
+        if n == 0:
+            return [CHECK_CALL, RAISE]
+        last = round_actions[-1]
+        if last == RAISE:
+            legal = [FOLD, CHECK_CALL]
+            if raises < 2:
+                legal.append(RAISE)
+            return legal
+        if last == CHECK_CALL:
+            return [CHECK_CALL, RAISE]
+        return [CHECK_CALL, RAISE]
+
+    def _round_over(ra):
+        n = len(ra)
+        if n < 2:
+            return False
+        if ra[-2] == CHECK_CALL and ra[-1] == CHECK_CALL:
+            return True
+        if ra[-2] == RAISE and ra[-1] == CHECK_CALL:
+            return True
+        return False
+
+    def _compute_bets(r0_actions, r1_actions):
+        bets = [1, 1]
+        for actions, raise_size in [(r0_actions, 2), (r1_actions, 4)]:
+            for i, a in enumerate(actions):
+                player = i % 2
+                if a == RAISE:
+                    call_amt = bets[1 - player] - bets[player]
+                    bets[player] += call_amt + raise_size
+                elif a == CHECK_CALL:
+                    call_amt = bets[1 - player] - bets[player]
+                    bets[player] += call_amt
+                elif a == FOLD:
+                    break
+        return bets
+
+    def _showdown(deal, bets):
+        r0, r1, rc = card_rank(deal[0]), card_rank(deal[1]), card_rank(deal[2])
+        p0_pair = r0 == rc
+        p1_pair = r1 == rc
+        if p0_pair and not p1_pair:
+            return bets[0]
+        if p1_pair and not p0_pair:
+            return -bets[0]
+        if r0 > r1:
+            return bets[0]
+        if r1 > r0:
+            return -bets[0]
+        return 0
+
+    def _h_str(r0_actions, r1_actions):
+        parts = [ACTION_CHARS[a] for a in r0_actions]
+        if r1_actions is not None:
+            parts.append("/")
+            parts.extend(ACTION_CHARS[a] for a in r1_actions)
+        return "".join(parts)
+
+    def _info(deal, player, h_str, round_num):
+        priv = card_rank(deal[player])
+        if round_num >= 1:
+            return f"{priv},{card_rank(deal[2])}|{h_str}"
+        return f"{priv}|{h_str}"
+
+    def _br_node(deal, br_player, r0_actions, round_num, r0_raises,
+                 r1_actions, r1_raises):
+        """Recursive best-response walk.  Returns P0's payoff when
+        *br_player* best-responds and the other follows *policy*.
+        When br_player==0, P0 maximises; when br_player==1, P1
+        minimises (P0 payoff)."""
+        if round_num == 0:
+            if r0_actions and r0_actions[-1] == FOLD:
+                folder = (len(r0_actions) - 1) % 2
+                bets = _compute_bets(r0_actions, [])
+                return -bets[0] if folder == 0 else bets[1]
+            if _round_over(r0_actions):
+                return _br_node(deal, br_player, r0_actions, 1,
+                                r0_raises, [], 0)
+            player = len(r0_actions) % 2
+            legal = _legal(r0_actions, r0_raises)
+            h_str = _h_str(r0_actions, None)
+            info = _info(deal, player, h_str, 0)
+
+            if player == br_player:
+                vals = []
+                for a in legal:
+                    nr = r0_raises + (1 if a == RAISE else 0)
+                    vals.append(_br_node(deal, br_player, r0_actions + [a],
+                                         0, nr, r1_actions, r1_raises))
+                return max(vals) if br_player == 0 else min(vals)
+            else:
+                val = 0.0
+                for a in legal:
+                    p = _get_prob(info, a)
+                    nr = r0_raises + (1 if a == RAISE else 0)
+                    val += p * _br_node(deal, br_player, r0_actions + [a],
+                                        0, nr, r1_actions, r1_raises)
+                return val
+        else:
+            if r1_actions is None:
+                r1_actions = []
+            if r1_actions and r1_actions[-1] == FOLD:
+                folder = (len(r1_actions) - 1) % 2
+                bets = _compute_bets(r0_actions, r1_actions)
+                return -bets[0] if folder == 0 else bets[1]
+            if _round_over(r1_actions):
+                bets = _compute_bets(r0_actions, r1_actions)
+                return _showdown(deal, bets)
+            player = len(r1_actions) % 2
+            legal = _legal(r1_actions, r1_raises)
+            h_str = _h_str(r0_actions, r1_actions)
+            info = _info(deal, player, h_str, 1)
+
+            if player == br_player:
+                vals = []
+                for a in legal:
+                    nr = r1_raises + (1 if a == RAISE else 0)
+                    vals.append(_br_node(deal, br_player, r0_actions, 1,
+                                         r0_raises, r1_actions + [a], nr))
+                return max(vals) if br_player == 0 else min(vals)
+            else:
+                val = 0.0
+                for a in legal:
+                    p = _get_prob(info, a)
+                    nr = r1_raises + (1 if a == RAISE else 0)
+                    val += p * _br_node(deal, br_player, r0_actions, 1,
+                                        r0_raises, r1_actions + [a], nr)
+                return val
+
+    br_p0_total = 0.0
+    br_p1_total = 0.0
+    for deal in all_deals:
+        br_p0_total += _br_node(deal, 0, [], 0, 0, None, 0)
+        br_p1_total += -_br_node(deal, 1, [], 0, 0, None, 0)
+
+    n = len(all_deals)
+    return (br_p0_total / n + br_p1_total / n) / 2.0
+
+
 def compute_exploitability(policy, game_name):
     """Compute exact exploitability for a given policy.
 
@@ -219,6 +390,9 @@ def compute_exploitability(policy, game_name):
     """
     if game_name == "matching_pennies":
         return _exploitability_matching_pennies(policy)
+    if game_name == "leduc":
+        return _exploitability_leduc(policy)
+
     if game_name != "kuhn":
         raise NotImplementedError(
             f"Exploitability not implemented for '{game_name}'.")
