@@ -396,7 +396,7 @@ We have identified a sharp threshold in contingent action capacity that governs 
 Games studied range from 1 to $200{,}000{+}$ information sets, with confirmed collapse at 24{,}576 info sets under true zero contingency (Liar's Dice). CAC is unweighted by reach probability. Reversibility may not hold under deeper networks where gradient-based collapse could corrupt representations.
 
 \paragraph{Future work.}
-Scaling to larger games; cooperative and general-sum settings; formal exploitability bounds; entropy regularisation as mitigation (preliminary results in Appendix~\ref{app:entropy}); reach-weighted capacity definitions.
+Scaling to larger games; cooperative and general-sum settings; formal exploitability bounds beyond Kuhn (approximate BR for Leduc/Liar's Dice); testing regret-minimisation self-play (NFSP) as a dynamic opponent; formalising degradation attractors in non-zero-sum settings.
 
 % ===================================================================
 \bibliographystyle{plainnat}
@@ -434,7 +434,9 @@ Our ``tabular PPO'' maintains a softmax policy over a preference table $\theta(s
 
 \section{Fixed-Opponent Calibration}
 \label{app:fixed-cal}
-Under forced check-fold (Kuhn, CAC $= 0$), the best-response value for P1 against $\sigma_0^f$ is $+0.23$ per game (P1 always bets, winning the ante when P0 folds to a bet). The CFR agent (playing Nash) achieves $-0.221$ for P0, close to this BR value. The Q-Learning agent under \emph{fixed} Nash opponent achieves $-0.228$, confirming that without co-adaptation, P0's loss is bounded by the BR against forced play---not the near-$-1$ DEA produced under self-play.
+Under forced check-fold (Kuhn, CAC $= 0$), $P_1$'s best response is to always bet: $P_0$ checks, $P_1$ bets, $P_0$ folds, yielding $+1$ for $P_1$ ($-1$ for $P_0$) on every hand. The $\varepsilon$-floor prevents exact convergence, so the theoretical DEA bound is $v_0 \approx -1 + \varepsilon_{\text{floor}}$---consistent with the observed self-play collapse at $-0.926$.
+
+Under a \emph{fixed Nash opponent} (which does \emph{not} best-respond to $\sigma_0^f$), $P_0$ drops only to $-0.228$. This is far from the BR value of $-1$ because the Nash opponent was trained before perturbation and does not adapt. The gap between $-0.228$ (fixed Nash) and $-0.926$ (self-play) directly quantifies the contribution of co-adaptation: without an adapting opponent, $P_0$ loses only what the Nash strategy extracts from forced check-fold; with co-adaptation, $P_1$ converges toward the BR and extracts nearly the maximum.
 
 \section{Additional Experiments}
 \label{app:algorithms}

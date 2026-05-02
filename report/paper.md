@@ -206,7 +206,7 @@ We have identified a sharp threshold in contingent action capacity that governs 
 
 **Limitations.** Games studied range from 1 to 200,000+ information sets, with confirmed collapse at 24,576 info sets under true zero contingency (Liar's Dice). CAC is unweighted by reach probability. Reversibility may not hold under deeper networks where gradient-based collapse could corrupt representations.
 
-**Future work.** Scaling to larger games; cooperative and general-sum settings; formal exploitability bounds; entropy regularisation as mitigation (preliminary results: no effect, see Appendix D); reach-weighted capacity definitions.
+**Future work.** Scaling to larger games; cooperative and general-sum settings; formal exploitability bounds; testing regret-minimisation self-play (NFSP) as a dynamic opponent; approximate exploitability for Leduc/Liar's Dice; reach-weighted capacity definitions; formalising the cooperative degradation attractor.
 
 ---
 
