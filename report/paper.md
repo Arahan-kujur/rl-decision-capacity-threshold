@@ -6,7 +6,7 @@
 
 ## Abstract
 
-We show that a minimal threshold in decision capacity determines whether self-play reinforcement learning agents collapse under asymmetric rule perturbations. Across poker variants (Kuhn, Leduc), matrix games (Matching Pennies), and four learning algorithms (Q-Learning, SARSA, REINFORCE, DQN), removing all of one player's decisions causes rapid convergence to a deterministic exploitation attractor (DEA)---a fixed point at near-maximal loss. Preserving even a single decision point prevents this collapse entirely. A frozen baseline and fixed-opponent control confirm the mechanism is co-adaptation under constraint, not the perturbation itself. The phenomenon is timing-invariant, fully reversible upon action restoration, and intensifies under function approximation. These results establish a sharp, structural threshold between zero and minimal decision capacity that governs exploitability in self-play multi-agent systems.
+We show that a minimal threshold in decision capacity determines whether self-play reinforcement learning agents collapse under asymmetric rule perturbations. Across poker variants (Kuhn, Leduc), matrix games (Matching Pennies), and five learning algorithms (Q-Learning, SARSA, REINFORCE, PPO, DQN), removing all of one player's decisions causes rapid convergence to a deterministic exploitation attractor (DEA)---a fixed point at near-maximal loss. Preserving even a single decision point prevents this collapse entirely. A frozen baseline and fixed-opponent control confirm the mechanism is co-adaptation under constraint, not the perturbation itself. The phenomenon is timing-invariant, fully reversible upon action restoration, and intensifies under function approximation. These results establish a sharp, structural threshold between zero and minimal decision capacity that governs exploitability in self-play multi-agent systems.
 
 ---
 
@@ -141,9 +141,10 @@ The jump from CAC = 0 to 1 is delta = 0.85 (+0.21 normalized). The jump from 1 t
 | Q-Learning | Tabular | **-0.927** | -66.1 |
 | SARSA | Tabular | **-0.927** | -66.1 |
 | REINFORCE | Tabular | **-0.500** | -39.6 |
+| PPO | Tabular | **-0.500** | -39.6 |
 | DQN | Neural | **-0.994** | -24.4 |
 
-All algorithms collapse. DQN reaches -0.994---more severe than tabular. Neural analysis confirms the mechanism: after perturbation, DQN's policy entropy drops to near zero and Q-value gaps spike, confirming rapid convergence to a deterministic policy. Function approximation compresses policies toward extreme distributions faster than tabular epsilon-greedy, which retains residual stochasticity at the epsilon-floor.
+All algorithms collapse. DQN reaches -0.994---more severe than tabular. PPO and REINFORCE both reach -0.500, partially protected by softmax parameterisation.
 
 ![DQN Analysis](latex/figures/dqn_analysis.png)
 
@@ -160,6 +161,7 @@ All algorithms collapse. DQN reaches -0.994---more severe than tabular. Neural a
 | Leduc Poker | -0.252 | 288 | 0.49 |
 | Leduc-4 Poker | -0.185 | 504 | 0.49 |
 | Liar's Dice (1d) | -0.032 | 24,576 | 0.48* |
+| Liar's Dice (1d, true zero) | **-0.524** | 24,576 | 0.24 |
 | Liar's Dice (2d) | +0.008 | 200,000+ | 0.50* |
 
 *Liar's Dice "full removal" forces challenge-only, which retains strategic value (see 6.5). 2-dice uses DQN (25 actions).
@@ -170,7 +172,7 @@ Collapse holds across all four games, spanning 1 to 504 information sets. Severi
 
 **IPD: when perturbation aligns with equilibrium.** Removing "cooperate" in the Iterated Prisoner's Dilemma produces no collapse (post = +1.12). IPD Nash is always-defect; removing cooperate pushes P0 toward equilibrium. The threshold operates only when the perturbation forces the agent into a dominated regime where the opponent can extract surplus.
 
-**Liar's Dice: when the "removed" action retains strategic value.** Removing all claims from P0 in Liar's Dice forces challenge-only play. Neither tabular Q-Learning (1-die, 24,576 info sets; post = -0.032) nor DQN (2-dice, 200,000+ info sets; post = +0.008) collapses. Unlike forced fold in Kuhn, challenging is contingent on P0's private die and claim history. P0 retains genuine decision-making through the *timing* of challenges. This confirms the threshold depends on strategic flexibility, not action count.
+**Liar's Dice: strategic flexibility vs. action type.** Removing all claims forces challenge-only play. Neither tabular Q-Learning (1-die; post = -0.032) nor DQN (2-dice; post = +0.008) collapses, because challenging at different points is a strategically contingent decision. However, when P0 is forced to play *deterministically* (always the lowest legal action, eliminating timing choices), Q-Learning collapses to -0.524 (normalized: 0.24; p < 0.0001) -- demonstrating collapse at 24,576 information sets. This confirms the threshold depends on reach-weighted CAC, not action-type count.
 
 **Non-zero-sum domains: degradation without collapse.** In the cooperative Coordination game (match-the-target), forcing P0 to a single action (CAC = 0) degrades team performance (+1.57 -> +1.44, p = 0.001, d = -3.8) but does not produce convergence to the DEA. In the Negotiation game (ultimatum, 11 offer actions), forcing P0 to a single offer (CAC = 0) degrades outcomes; P1's policy shifts toward rejection because it can condition on P0's inability to adapt its offer, but this rejection is bounded. Retaining partial flexibility (offers 0-2, CAC = 3) reverses the degradation entirely. In contrast to competitive settings where zero contingency produces collapse to the DEA, cooperative and mixed-motive environments exhibit bounded degradation, suggesting the threshold interacts with the underlying interaction structure.
 
@@ -200,7 +202,7 @@ Collapse holds across all four games, spanning 1 to 504 information sets. Severi
 
 We have identified a sharp threshold in contingent action capacity that governs whether self-play RL agents collapse under asymmetric action-space perturbations. The finding is game-general, algorithm-invariant (including DQN), co-adaptation-driven, timing-invariant, and fully reversible. A single retained decision point prevents catastrophic exploitation by maintaining strategic coupling between players.
 
-**Limitations.** Games studied range from 1 to 200,000+ information sets. The largest game (Liar's Dice 2-dice) uses DQN rather than tabular methods. CAC is unweighted by reach probability. Reversibility may not hold under deeper networks where gradient-based collapse could corrupt representations.
+**Limitations.** Games studied range from 1 to 200,000+ information sets, with confirmed collapse at 24,576 info sets under true zero contingency (Liar's Dice). CAC is unweighted by reach probability. Reversibility may not hold under deeper networks where gradient-based collapse could corrupt representations.
 
 **Future work.** Scaling to larger games; cooperative and general-sum settings; formal exploitability bounds; entropy regularisation as mitigation (preliminary results: no effect, see Appendix D); reach-weighted capacity definitions.
 

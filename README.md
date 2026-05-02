@@ -15,8 +15,9 @@ representations.
   Nash equilibrium.
 - **Co-adaptation is the mechanism**: a frozen baseline and fixed-opponent
   control prove it.
-- **Tested across**: 5 games (1--24,576 info sets), 4 algorithms
-  (Q-Learning, SARSA, REINFORCE, DQN), 3 perturbation schedules.
+- **Tested across**: 8 games (1--24,576 info sets, collapse confirmed at scale),
+  5 algorithms (Q-Learning, SARSA, REINFORCE, PPO, DQN),
+  3 perturbation schedules.
 
 ## Quick Start
 
@@ -76,7 +77,7 @@ All implemented from scratch. No external game libraries.
 - **REINFORCE** -- Tabular policy gradient
 - **DQN** -- 2-layer MLP, experience replay, target network
 - **QL-Frozen** -- Q-Learning frozen at perturbation point
-- **Entropy-Q** -- Q-Learning with entropy bonus
+- **PPO** -- Tabular proximal policy optimization with entropy bonus
 
 ## Requirements
 

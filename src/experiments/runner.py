@@ -37,6 +37,9 @@ def _create_learning_agent(config, num_actions):
                           num_actions=num_actions), "SARSA"
     elif agent_type == "reinforce":
         return ReinforceAgent(alpha=alpha * 0.1, num_actions=num_actions), "REINFORCE"
+    elif agent_type == "ppo":
+        from src.agents.ppo_agent import PPOAgent
+        return PPOAgent(num_actions=num_actions), "PPO"
     elif agent_type == "dqn":
         from src.agents.dqn_agent import DQNAgent
         game = config["experiment"].get("game", "kuhn")
@@ -59,6 +62,9 @@ def _create_frozen_agent(config, num_actions):
                            num_actions=num_actions)
     elif agent_type == "reinforce":
         agent = ReinforceAgent(alpha=alpha * 0.1, num_actions=num_actions)
+    elif agent_type == "ppo":
+        from src.agents.ppo_agent import PPOAgent
+        agent = PPOAgent(num_actions=num_actions)
     elif agent_type == "dqn":
         from src.agents.dqn_frozen_agent import DQNFrozenAgent
         game = config["experiment"].get("game", "kuhn")

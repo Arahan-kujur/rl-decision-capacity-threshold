@@ -22,7 +22,7 @@
 
 % ===================================================================
 \begin{abstract}
-We show that a threshold in decision capacity determines whether self-play reinforcement learning agents collapse under asymmetric rule perturbations. Across poker variants (Kuhn, Leduc, Leduc-4), matrix games (Matching Pennies), a dice game (Liar's Dice; 24{,}576 info sets), and four learning algorithms (Q-Learning, SARSA, REINFORCE, DQN), eliminating all \emph{strategically meaningful} decisions causes rapid convergence to a deterministic exploitation attractor (DEA)---a fixed point at near-maximal loss. Preserving even a single contingent decision point prevents this collapse. A frozen baseline and fixed-opponent control confirm the mechanism is co-adaptation under constraint, not the perturbation itself. The phenomenon is timing-invariant, fully reversible upon action restoration, and intensifies under function approximation. These results establish a sharp, structural threshold between zero and minimal decision capacity that governs exploitability in self-play multi-agent systems.
+We show that a threshold in decision capacity determines whether self-play reinforcement learning agents collapse under asymmetric rule perturbations. Across poker variants (Kuhn, Leduc, Leduc-4), matrix games (Matching Pennies), a dice game (Liar's Dice; 24{,}576 info sets), and five learning algorithms (Q-Learning, SARSA, REINFORCE, PPO, DQN), eliminating all \emph{strategically meaningful} decisions causes rapid convergence to a deterministic exploitation attractor (DEA)---a fixed point at near-maximal loss. Preserving even a single contingent decision point prevents this collapse. A frozen baseline and fixed-opponent control confirm the mechanism is co-adaptation under constraint, not the perturbation itself. The phenomenon is timing-invariant, fully reversible upon action restoration, and intensifies under function approximation. These results establish a sharp, structural threshold between zero and minimal decision capacity that governs exploitability in self-play multi-agent systems.
 \end{abstract}
 
 % ===================================================================
@@ -55,7 +55,10 @@ Self-play has driven advances from TD-Gammon~\citep{tesauro1994td} through Alpha
 The MARL robustness literature encompasses adversarial policies~\citep{gleave2020adversarial}, opponent-learning awareness~\citep{foerster2018learning}, and distributional robustness~\citep{zhang2021multi}. These typically perturb observations, rewards, or opponent behaviour. We perturb the \emph{action space} itself---a structural change that eliminates decision points rather than adding noise. This reveals a qualitative threshold effect that continuous perturbations cannot produce.
 
 \paragraph{Action masking and constrained RL.}
-Invalid action masking is standard practice in game AI~\citep{huang2022closer}, and constrained MDPs formalise action restrictions~\citep{altman1999constrained}. However, the dynamic consequences of \emph{mid-training} action removal under self-play have not been studied. Our work shows that the strategic impact depends critically on whether the removal eliminates all remaining decisions.
+Invalid action masking is standard practice in game AI~\citep{huang2022closer}, and constrained MDPs formalise action restrictions~\citep{altman1999constrained}. Robust MDPs address uncertain transitions~\citep{iyengar2005robust,nilim2005robust}, and stochastic action-set MDPs model settings where available actions vary~\citep{boutilier2018planning}. However, the dynamic consequences of \emph{mid-training} action removal under self-play have not been studied.
+
+\paragraph{Self-play stabilisation.}
+Opponent-shaping methods such as LOLA~\citep{foerster2018learning} and SOS~\citep{letcher2019stable} stabilise self-play by accounting for the opponent's learning dynamics. Population-based methods including PSRO~\citep{lanctot2017unified} and $\alpha$-PSRO~\citep{muller2020generalized} maintain diverse strategy populations to avoid cycling. Whether these approaches attenuate the co-adaptation-driven collapse we identify remains an open question.
 
 \paragraph{Exploitability and game-theoretic evaluation.}
 Exploitability---the gap between an agent's value and the Nash equilibrium value---is the standard evaluation metric in computational game theory~\citep{johanson2007computing,timbers2022approximate}. We connect our threshold effect to the best-response structure of reduced games via formal propositions (Section~5).
@@ -110,34 +113,45 @@ Cross-game comparison uses $(r - r_{\min}) / (r_{\max} - r_{\min}) \in [0,1]$.
 
 We formalise the threshold effect in two-player zero-sum extensive-form games. The propositions below apply to the zero-sum case; Section~\ref{sec:boundaries} presents empirical evidence that cooperative and mixed-motive settings produce a qualitatively different (bounded degradation) response. Extending the formal treatment to general-sum games is left to future work. Let $G = (H, P, A, \mathcal{I}, u)$ be a two-player zero-sum game with history set $H$, player function $P$, action sets $A$, information partition $\mathcal{I}$, and utility $u$.
 
+\paragraph{Reach-weighted contingent action capacity.}
+For a strategy profile $\sigma$, the \emph{reach probability} of information set $h$ is $\rho^\sigma(h) = \prod_{h' \sqsubset h} \sigma_{P(h')}(h')$, the product of action probabilities on the path to $h$. We define the \emph{reach-weighted CAC}:
+\begin{equation}
+\text{CAC}_w(P_0) = \sum_{h \in \mathcal{I}_0} \rho^{\sigma}(h) \cdot \mathbf{1}[|A(h)| \geq 2]
+\label{eq:cac-w}
+\end{equation}
+This refines the unweighted count by discounting information sets that are rarely reached. The unweighted CAC used in experiments is an upper bound: $\text{CAC} \geq \text{CAC}_w$.
+
 \begin{proposition}[Zero-contingency exploitation]
 \label{prop:zero}
-Let $G'$ be the reduced game obtained by fixing Player~0's action at every information set $I \in \mathcal{I}_0$ (i.e., $\text{CAC}(P_0) = 0$). Then Player~0's value in $G'$ equals the best-response value against $P_0$'s forced policy:
+Let $G'$ be the reduced game with $\text{CAC}(P_0) = 0$ (equivalently $\text{CAC}_w(P_0) = 0$). Then $P_0$'s value in $G'$ is:
 \[
 v_0(G') = -\max_{\pi_1 \in \Pi_1} \sum_{z \in Z} u_1(z) \cdot \rho^{\sigma_0^f, \pi_1}(z)
 \]
-where $\sigma_0^f$ is $P_0$'s forced (deterministic) strategy and $\rho^{\sigma_0^f, \pi_1}(z)$ is the probability of reaching terminal node $z$.
+where $\sigma_0^f$ is $P_0$'s forced (deterministic) strategy. Moreover, $P_1$'s best response is pure and computable in $O(|Z|)$ time.
 \end{proposition}
 
 \begin{proof}
-Under zero contingency, $P_0$ has no strategic choices; $\sigma_0^f$ is the unique strategy available. The game reduces to a single-agent optimisation for $P_1$, whose optimal response is the pure best response $\text{BR}(\sigma_0^f)$. By the minimax theorem applied to the reduced game, this determines $v_0(G')$ uniquely.
+Under zero contingency, $\sigma_0^f$ is the unique strategy for $P_0$. The game reduces to a single-player MDP for $P_1$ with a deterministic environment. The optimal policy is a pure best response computable by backward induction over $P_1$'s decision nodes, with complexity linear in the number of terminal histories reachable under $\sigma_0^f$.
 \end{proof}
 
 \begin{proposition}[Residual contingency bound]
 \label{prop:residual}
-If $P_0$ retains at least one information set $h^* \in \mathcal{I}_0$ with $|A(h^*)| \geq 2$, then $P_1$'s best response must condition on $P_0$'s choice at $h^*$. In particular, $P_1$ cannot adopt the pure exploitation strategy of Proposition~\ref{prop:zero}, and:
+Suppose $P_0$ retains at least one information set $h^* \in \mathcal{I}_0$ with $|A(h^*)| \geq 2$ and reach $\rho^{\sigma}(h^*) > 0$. Let $v_0^*$ be $P_0$'s minimax value in the subgame rooted at $h^*$, and let $v_0^{\text{forced}}$ be the value under the forced policy at all other nodes. Then:
 \[
-v_0(G') \geq v_0^{\text{Nash}}(G) - \delta(h^*)
+v_0(G') \geq \rho^{\sigma}(h^*) \cdot v_0^* + (1 - \rho^{\sigma}(h^*)) \cdot v_0^{\text{forced}}
 \]
-where $\delta(h^*)$ depends on the strategic weight of the forced information sets and vanishes when $h^*$ is reached with high probability.
+In particular, $v_0(G') > v_0^{\text{zero-cont}}$ whenever $v_0^* > v_0^{\text{forced}}$ and $\rho^{\sigma}(h^*) > 0$. The improvement is proportional to the reach of the retained node:
+\[
+\delta(h^*) = \rho^{\sigma}(h^*) \cdot (v_0^* - v_0^{\text{forced}})
+\]
 \end{proposition}
 
 \begin{proof}
-At $h^*$, $P_0$ can choose among $|A(h^*)| \geq 2$ actions contingent on $P_1$'s strategy. Any pure $P_1$ strategy that does not account for this choice can be exploited by $P_0$'s adaptation at $h^*$. Therefore $P_1$'s best response must mix or condition on $P_0$'s play at $h^*$, preventing convergence to the zero-contingency exploitation point. The bound follows from the observation that $G'$ contains the strategic interaction at $h^*$ as a subgame.
+By linearity of expectation over reach probabilities, $P_0$'s value decomposes into the contribution from histories passing through $h^*$ (where $P_0$ plays optimally) and those not passing through $h^*$ (where $P_0$ is forced). The bound follows directly. When $h^*$ is reached with probability 1 (as in Kuhn root-only removal where all games pass through the ``pb'' node), $\delta(h^*) = v_0^* - v_0^{\text{forced}}$ and the full minimax value is recovered.
 \end{proof}
 
 \begin{corollary}
-The transition from $\text{CAC} = 1$ to $\text{CAC} = 0$ qualitatively changes the best-response structure: from a game requiring mixed or adaptive responses to one with a trivially computable pure best response. This structural discontinuity---not a quantitative reduction---drives the threshold effect.
+The transition from $\text{CAC}_w > 0$ to $\text{CAC}_w = 0$ qualitatively changes the best-response structure: from a game with strategic interaction (requiring mixed or adaptive responses, with value bounded by $\delta(h^*)$) to one with a trivially computable pure best response. A single retained decision point with positive reach is sufficient to prevent collapse; a retained decision with zero reach provides no protection.
 \end{corollary}
 
 % ===================================================================
@@ -255,11 +269,12 @@ Q-Learning & Tabular & $\mathbf{-0.927}$ & $-66.1$ \\
 SARSA      & Tabular & $\mathbf{-0.927}$ & $-66.1$ \\
 REINFORCE  & Tabular & $\mathbf{-0.500}$ & $-39.6$ \\
 DQN        & Neural  & $\mathbf{-0.994}$ & $-24.4$ \\
+PPO        & Tabular & $\mathbf{-0.500}$ & $-39.6$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-All algorithms collapse. DQN reaches $-0.994$---\emph{more} severe than tabular agents. Figure~\ref{fig:dqn-analysis} provides mechanistic insight: after perturbation, DQN's policy entropy drops to near zero and Q-value gaps spike, confirming rapid convergence to a deterministic policy. Function approximation compresses the policy toward extreme action distributions faster than tabular $\varepsilon$-greedy, which retains residual stochasticity at the $\varepsilon$-floor.
+All algorithms collapse. DQN reaches $-0.994$---\emph{more} severe than tabular agents. PPO and REINFORCE both reach $-0.500$, partially protected by their softmax policy parameterisation. Figure~\ref{fig:dqn-analysis} provides mechanistic insight: after perturbation, DQN's policy entropy drops to near zero and Q-value gaps spike, confirming rapid convergence to a deterministic policy. Function approximation compresses the policy toward extreme action distributions faster than tabular $\varepsilon$-greedy, which retains residual stochasticity at the $\varepsilon$-floor.
 
 \begin{figure}[ht!]
 \centering
@@ -290,6 +305,7 @@ Kuhn Poker       & $-0.926$ & 12   & $0.27$ \\
 Leduc Poker      & $-0.252$ & 288  & $0.49$ \\
 Leduc-4 Poker    & $-0.185$ & $504$ & $0.49$ \\
 Liar's Dice (1d) & $-0.032$ & $24{,}576$ & $0.48^\dagger$ \\
+Liar's Dice (1d, true zero) & $\mathbf{-0.524}$ & $24{,}576$ & $0.24$ \\
 Coordination     & $+1.44^{\ddagger}$ & -- & -- \\
 Liar's Dice (2d) & $+0.008$ & $200{,}000{+}$ & $0.50^\dagger$ \\
 \bottomrule
@@ -307,8 +323,8 @@ Collapse holds across poker and matrix games (1--504 info sets). Liar's Dice at 
 \paragraph{IPD: when perturbation aligns with equilibrium.}
 Removing ``cooperate'' in the Iterated Prisoner's Dilemma produces no collapse (post $= +1.12$). IPD Nash is always-defect; removing cooperate pushes P0 \emph{toward} equilibrium. The threshold operates only when the perturbation forces the agent into a dominated regime where the opponent can extract surplus.
 
-\paragraph{Liar's Dice: when the ``removed'' action retains strategic value.}
-Removing all claims from P0 in Liar's Dice forces challenge-only play. Neither tabular Q-Learning (1-die, 24{,}576 info sets; post $= -0.032$) nor DQN (2-dice, $200{,}000{+}$ info sets; post $= +0.008$) collapses. Unlike forced fold in Kuhn, challenging in Liar's Dice is a strategically meaningful action: it is contingent on P0's private die and the claim history. P0 retains genuine decision-making through the \emph{timing} of challenges, even though the action \emph{type} is fixed. This confirms that the threshold depends on whether strategic flexibility is preserved, not merely on the count of available action types.
+\paragraph{Liar's Dice: strategic flexibility vs.\ action type.}
+Removing all claims from P0 in Liar's Dice forces challenge-only play. Neither tabular Q-Learning (1-die; post $= -0.032$) nor DQN (2-dice; post $= +0.008$) collapses, because challenging at different points is a strategically contingent decision. However, when we force P0 to play \emph{deterministically} (always the lowest legal action, eliminating timing choices), Q-Learning collapses to $-0.524$ (normalized: $0.24$; $p < 0.0001$)---demonstrating collapse at 24{,}576 information sets. This confirms that the threshold depends on the reach-weighted CAC (Eq.~\ref{eq:cac-w}), not the action-type count: challenge-only play retains high $\text{CAC}_w$ because challenge decisions are contingent on private information, whereas deterministic-lowest play sets $\text{CAC}_w = 0$.
 
 \paragraph{Non-zero-sum domains: degradation without collapse.}
 In the cooperative Coordination game (match-the-target), forcing P0 to a single action (CAC $= 0$) degrades team performance ($+1.57 \to +1.44$, $p = 0.001$, $d = -3.8$) but does not produce convergence to the DEA. In the Negotiation game (ultimatum, 11 offer actions), forcing P0 to a single offer (CAC $= 0$) degrades outcomes; crucially, P1's policy shifts toward rejection because it can condition on P0's inability to adapt its offer, but this rejection is bounded---P1 does not converge to unconditional rejection as it would under zero-sum exploitation pressure. Retaining partial flexibility (offers 0--2, CAC $= 3$) reverses the degradation entirely. In contrast to competitive settings where zero contingency produces collapse to the DEA, cooperative and mixed-motive environments exhibit bounded degradation, suggesting that the threshold interacts with the underlying interaction structure: zero-sum dynamics amplify the constraint into catastrophic exploitation, while cooperative dynamics produce performance loss without attractor convergence.
@@ -362,10 +378,10 @@ Post-collapse reward variance is $5 \times 10^{-6}$, confirming the DEA is a det
 \FloatBarrier
 \section{Conclusion}
 
-We have identified a sharp threshold in contingent action capacity that governs whether self-play RL agents collapse under asymmetric action-space perturbations. The finding is game-general, algorithm-invariant (including DQN), co-adaptation-driven, timing-invariant, and fully reversible. A single retained decision point prevents catastrophic exploitation by maintaining strategic coupling between players.
+We have identified a sharp threshold in contingent action capacity that governs whether self-play RL agents collapse under asymmetric action-space perturbations. The finding is game-general, algorithm-invariant (Q-Learning, SARSA, REINFORCE, PPO, DQN), co-adaptation-driven, timing-invariant, and fully reversible. A single retained decision point prevents catastrophic exploitation by maintaining strategic coupling between players.
 
 \paragraph{Limitations.}
-Games studied range from 1 to $200{,}000{+}$ information sets. The largest game (Liar's Dice 2-dice) uses DQN rather than tabular methods. CAC is unweighted by reach probability. Reversibility may not hold under deeper networks where gradient-based collapse could corrupt representations.
+Games studied range from 1 to $200{,}000{+}$ information sets, with confirmed collapse at 24{,}576 info sets under true zero contingency (Liar's Dice). CAC is unweighted by reach probability. Reversibility may not hold under deeper networks where gradient-based collapse could corrupt representations.
 
 \paragraph{Future work.}
 Scaling to larger games; cooperative and general-sum settings; formal exploitability bounds; entropy regularisation as mitigation (preliminary results in Appendix~\ref{app:entropy}); reach-weighted capacity definitions.
@@ -423,6 +439,42 @@ Root-only perturbation applied with 50\% probability per episode (Kuhn): QL post
 
 \paragraph{Variance decomposition.}
 Post-collapse Q-Learning reward variance: $V_{\text{total}} = 5 \times 10^{-6}$, $V_{\text{env}} = 7 \times 10^{-6}$, $V_{\text{policy}} = 6 \times 10^{-6}$. Near-zero total variance confirms the DEA is a deterministic fixed point.
+
+\section{DQN Hyperparameters and Normalization}
+\label{app:dqn-details}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Network & 2-layer MLP, 64 hidden units, ReLU \\
+Optimizer & Adam, lr $= 10^{-3}$ \\
+Replay buffer & 10{,}000 transitions \\
+Batch size & 32 \\
+Target network update & Every 500 episodes \\
+$\varepsilon$ schedule & $0.15 \to 0.01$ linear over 50{,}000 steps \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Normalization bounds per game.}
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+Game & $r_{\min}$ & $r_{\max}$ & Nash $v_0$ \\
+\midrule
+Kuhn Poker & $-2$ & $+2$ & $-0.056$ \\
+Leduc Poker & $-13$ & $+13$ & $-0.087$ \\
+Leduc-4 & $-13$ & $+13$ & $-0.096$ \\
+Matching Pennies & $-1$ & $+1$ & $0$ \\
+Liar's Dice (1d) & $-1$ & $+1$ & $-0.076$ \\
+Liar's Dice (2d) & $-1$ & $+1$ & $\approx 0$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Exploitability computation.} Exact exploitability is computed for Kuhn Poker via full best-response tree walk over all 6 deals: $\text{Exploit}(\pi) = (\text{BR}_{P_0}(\pi) + \text{BR}_{P_1}(\pi)) / 2$, where $\text{BR}_{P_i}$ is the best-response value for player $i$ against $\pi$ playing as the opponent. This is exact (no approximation) for Kuhn's 12 information sets.
 
 \section{Entropy Regularisation}
 \label{app:entropy}
