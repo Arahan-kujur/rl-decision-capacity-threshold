@@ -22,7 +22,7 @@
 
 % ===================================================================
 \begin{abstract}
-We show that a threshold in decision capacity determines whether self-play reinforcement learning agents collapse under asymmetric rule perturbations. Across poker variants (Kuhn, Leduc, Leduc-4), matrix games (Matching Pennies), a dice game (Liar's Dice; 24{,}576 info sets), and six learning algorithms (Q-Learning, SARSA, REINFORCE, PPO, DQN, NFSP), eliminating all \emph{strategically meaningful} decisions causes rapid convergence to a deterministic exploitation attractor (DEA)---a fixed point at near-maximal loss. Preserving even a single contingent decision point prevents this collapse. A frozen baseline and fixed-opponent control confirm the mechanism is co-adaptation under constraint, not the perturbation itself. The phenomenon is timing-invariant, fully reversible upon action restoration, and intensifies under function approximation. These results establish a sharp, structural threshold between zero and minimal decision capacity that governs exploitability in self-play multi-agent systems.
+We show that a threshold in decision capacity determines whether self-play reinforcement learning agents collapse under asymmetric rule perturbations. Across poker variants (Kuhn, Leduc, Leduc-4), matrix games (Matching Pennies), a dice game (Liar's Dice; 24{,}576 info sets), and six learning algorithms (Q-Learning, SARSA, REINFORCE, PPO, DQN, NFSP), eliminating all \emph{strategically meaningful} decisions causes rapid convergence to a deterministic exploitation attractor (DEA)---a fixed point at near-maximal loss. Preserving even a single contingent decision point prevents this collapse. A frozen baseline and fixed-opponent control confirm the mechanism is co-adaptation under constraint, not the perturbation itself. The phenomenon is timing-invariant, fully reversible upon action restoration, and intensifies under function approximation. These results establish an empirically sharp threshold between zero and minimal decision capacity---theoretically continuous via reach-weighted CAC (Proposition~2) but exhibiting high contrast in all tested domains.
 \end{abstract}
 
 % ===================================================================
@@ -34,7 +34,7 @@ Such perturbations arise naturally in practice. In robotics, hardware failures m
 
 We study this question in imperfect-information games by removing one player's ability to bet or raise at subsets of decision nodes. This creates a controlled perturbation that reduces the agent's \emph{contingent action capacity} (CAC)---the number of information sets at which it retains more than one legal action.
 
-Our central finding is a pronounced threshold effect. When CAC drops to zero (every decision is forced), adaptive self-play agents converge to a \emph{deterministic exploitation attractor} (DEA)---a fixed point characterised by near-maximal loss and near-zero reward variance. When even a single decision point is preserved (CAC $\geq 1$, with positive reach), agents stabilise near Nash equilibrium. A frozen baseline and fixed-opponent control isolate continued co-adaptation as the mechanism. Our contributions:
+Our central finding is a pronounced threshold effect. When CAC drops to zero (every decision is forced), adaptive self-play agents converge to a \emph{deterministic exploitation attractor} (DEA)---the unique optimal policy of the single-agent MDP induced by the forced player's policy $\sigma_0^f$, characterised by near-maximal loss, near-zero reward variance, and $\varepsilon$-greedy perturbations bounding deviation from the theoretical minimum. When even a single decision point is preserved (CAC $\geq 1$, with positive reach), agents stabilise near Nash equilibrium. A frozen baseline and fixed-opponent control isolate continued co-adaptation as the mechanism. Our contributions:
 \begin{itemize}
   \item We identify a pronounced CAC threshold governing collapse in self-play RL and provide formal propositions characterising the zero-contingency fixed point.
   \item We isolate co-adaptation under constraint as the mechanism via frozen baseline and fixed-opponent comparisons.
@@ -97,7 +97,7 @@ Two players, two actions (heads, tails), simultaneous single-shot. Nash: 50/50 m
 Each experiment runs 20 seeds of 20{,}000 episodes (50{,}000 for DQN). Perturbation applied to Player~0 at the midpoint.
 
 \paragraph{Contingent action capacity (CAC).}
-The number of reachable information sets at which the perturbed agent retains $>1$ legal action. CAC counts decision points without weighting by reach probability; in larger games, a reach-weighted variant may better capture strategic significance (see Limitations).
+The number of reachable information sets at which the perturbed agent retains $>1$ legal action. All CAC-based experiments use the unweighted count as a proxy; $\text{CAC}_w$ (reach-weighted, Section~5) is the governing theoretical quantity.
 
 \paragraph{Self-play setup.}
 A single agent plays both roles, with Q-values indexed by player-specific information states. This is equivalent to independent self-play in our zero-sum setting because each player's policy is implicitly determined by separate information-state entries. We verify this empirically: separate-agent experiments produce identical results (Appendix~\ref{app:separate}).
@@ -106,7 +106,7 @@ A single agent plays both roles, with Q-values indexed by player-specific inform
 Paired $t$-tests across seeds, bootstrap 95\% CIs (10{,}000 resamples), Cohen's~$d$. Due to low across-seed variance under paired evaluation, effect sizes are large and should be interpreted as indicating direction and reliability.
 
 \paragraph{Normalization.}
-Cross-game comparison uses $(r - r_{\min}) / (r_{\max} - r_{\min}) \in [0,1]$.
+Cross-game comparison uses $(r - r_{\min}) / (r_{\max} - r_{\min}) \in [0,1]$. This normalization aids comparison across reward scales but obscures absolute exploitability; we report exact exploitability where computable (Kuhn, Leduc) to complement normalized rewards.
 
 % ===================================================================
 \section{Theory}
@@ -254,7 +254,7 @@ QL-Frozen avoids the DEA ($-0.141$ vs $-0.927$; $\Delta = -0.787$, $p = 0.004$, 
 Against a static Nash opponent (5 seeds), Q-Learning drops only to $-0.228$ (identical to CFR). Under self-play the same condition produces $-0.926$ (20 seeds). Co-adaptation is necessary for catastrophic collapse.
 
 \paragraph{Population-based training (PSRO).}
-Under PSRO with a 5-policy population, P0's post-perturbation reward improves to $-0.418 \pm 0.062$ (3 seeds)---substantially better than self-play ($-0.927$) but still degraded from pre-perturbation ($\approx -0.05$). The diverse population prevents the opponent from fully specialising against P0's forced policy, but cannot recover the strategic loss from zero contingency. PSRO \emph{mitigates} but does not \emph{eliminate} collapse: the structural vulnerability remains, but its exploitation is bounded by population diversity. With larger populations, P0's post-perturbation reward improves monotonically ($-0.275$ at pop.\ 3; $-0.598$ at pop.\ 15; all vs.\ $-0.927$ under self-play), confirming that opponent diversity blunts co-adaptation but cannot overcome the fundamental strategic loss at CAC $= 0$.
+Under PSRO with a 5-policy population, P0's post-perturbation reward improves to $-0.418 \pm 0.062$ (3 seeds)---substantially better than self-play ($-0.927$) but still degraded from pre-perturbation ($\approx -0.05$). The diverse population prevents the opponent from fully specialising against P0's forced policy, but cannot recover the strategic loss from zero contingency. PSRO \emph{mitigates} but does not \emph{eliminate} collapse: the structural vulnerability remains, but its exploitation is bounded by population diversity. With larger populations, P0's post-perturbation reward improves monotonically ($-0.275$ at pop.\ 3; $-0.598$ at pop.\ 15; all vs.\ $-0.927$ under self-play). Population diversity bounds the degree of exploitation but cannot restore lost strategic degrees of freedom: the structural vulnerability at CAC $= 0$ persists regardless of opponent diversity, though its severity is modulated.
 
 \begin{figure}[ht!]
 \centering
@@ -287,7 +287,7 @@ NFSP       & Tabular & $\mathbf{-0.505}$ & -- \\
 \end{tabular}
 \end{table}
 
-All algorithms collapse. DQN reaches $-0.994$---\emph{more} severe than tabular agents. PPO and REINFORCE both reach $-0.500$, partially protected by their softmax policy parameterisation. Notably, NFSP---which maintains an explicit average strategy via supervised learning, designed specifically for imperfect-information games---also collapses to $-0.505$, confirming that regret-tracking dynamics do not resist the structural vulnerability at CAC $= 0$. To isolate the $\varepsilon$-schedule effect, we ran DQN with fixed $\varepsilon = 0.15$ (no decay): post-perturbation reward improved modestly to $-0.923$, confirming that the deeper collapse under decaying $\varepsilon$ is driven by reduced exploration ($\varepsilon \to 0.01$), but the structural vulnerability persists regardless. Figure~\ref{fig:dqn-analysis} provides mechanistic insight: after perturbation, DQN's policy entropy drops to near zero and Q-value gaps spike, confirming rapid convergence to a deterministic policy.
+All algorithms collapse. DQN reaches $-0.994$---\emph{more} severe than tabular agents. PPO and REINFORCE both reach $-0.500$, partially protected by their softmax policy parameterisation. Notably, NFSP---which maintains an explicit average strategy via supervised learning, designed specifically for imperfect-information games---also collapses to $-0.505$. This occurs because NFSP's best-response component still learns to exploit the forced opponent, and the average strategy cannot compensate when the action space itself has collapsed: there is no historical action diversity to average over when P0's every decision is forced. To isolate the $\varepsilon$-schedule effect, we ran DQN with fixed $\varepsilon = 0.15$ (no decay): post-perturbation reward improved modestly to $-0.923$, confirming that the deeper collapse under decaying $\varepsilon$ is driven by reduced exploration ($\varepsilon \to 0.01$), but the structural vulnerability persists regardless. Figure~\ref{fig:dqn-analysis} provides mechanistic insight: after perturbation, DQN's policy entropy drops to near zero and Q-value gaps spike, confirming rapid convergence to a deterministic policy.
 
 \begin{figure}[ht!]
 \centering
@@ -375,7 +375,7 @@ Recovered (15--25k) & $-0.025$ & $[-0.06, -0.01]$ \\
 \end{figure}
 
 \paragraph{Exploitability trajectory.}
-Figure~\ref{fig:exploit} plots exact exploitability (computed via best-response tree walk) over training in Kuhn. Pre-perturbation, exploitability converges toward zero as the agent approaches Nash. Post-perturbation, exploitability spikes. For Leduc Poker, exact exploitability (120 deals, full tree walk) increases from $1.63$ pre-perturbation to $1.93$ post-perturbation ($\Delta = +0.30$), corroborating the reward-based findings with a game-theoretic metric.
+Figure~\ref{fig:exploit} plots exact exploitability (computed via best-response tree walk) over training in Kuhn. Pre-perturbation, exploitability converges toward zero as the agent approaches Nash. Post-perturbation, exploitability spikes. For Leduc Poker, exact exploitability (120 deals, full tree walk) increases from $1.63$ pre-perturbation to $1.93$ post-perturbation ($\Delta = +0.30$), corroborating the reward-based findings with a game-theoretic metric. Reward degradation aligns with increased exploitability where computable (Kuhn, Leduc), supporting generalisation of the DEA characterisation to games where only reward is available.
 
 \begin{figure}[ht!]
 \centering
@@ -391,7 +391,7 @@ Post-collapse reward variance is $5 \times 10^{-6}$, confirming the DEA is a det
 \FloatBarrier
 \section{Conclusion}
 
-We have identified a pronounced threshold in contingent action capacity that governs whether self-play RL agents collapse under asymmetric action-space perturbations. The severity of the transition depends on the reach-weighted CAC of the retained decision points (Proposition~\ref{prop:residual}): higher reach yields stronger protection. The finding is game-general, algorithm-invariant (Q-Learning, SARSA, REINFORCE, PPO, NFSP, DQN), co-adaptation-driven, timing-invariant, and fully reversible. A single retained decision point prevents catastrophic exploitation by maintaining strategic coupling between players.
+We have identified a pronounced threshold in contingent action capacity that governs whether self-play RL agents collapse under asymmetric action-space perturbations. The severity of the transition depends on the reach-weighted CAC of the retained decision points (Proposition~\ref{prop:residual}): higher reach yields stronger protection. The finding is, within the tested class of imperfect-information and matrix games, algorithm-invariant (Q-Learning, SARSA, REINFORCE, PPO, NFSP, DQN), co-adaptation-driven, timing-invariant, and fully reversible. A single retained decision point prevents catastrophic exploitation by maintaining strategic coupling between players.
 
 \paragraph{Limitations.}
 Games studied range from 1 to $200{,}000{+}$ information sets, with confirmed collapse at 24{,}576 info sets under true zero contingency (Liar's Dice). CAC is unweighted by reach probability. Reversibility may not hold under deeper networks where gradient-based collapse could corrupt representations.
